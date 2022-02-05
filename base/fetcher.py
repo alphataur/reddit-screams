@@ -10,7 +10,7 @@ def date2epoch(dt):
 def epoch2date(epoch):
     return datetime.fromtimestamp(epoch)
 
-class Fetched:
+class Fetcher:
     def __init__(self, subreddit, days=10, time_from=None, time_to=None):
         self.filters = ["id", "score", "author", "created_utc", "title"]
         self.subreddit = subreddit
@@ -19,13 +19,13 @@ class Fetched:
             time_from = date2epoch(yesterday)
         if time_to is None:
             today = date.today()
-            time_from = date2epoch(today)
+            time_to = date2epoch(today)
         self.time_from = time_from
         self.time_to = time_to
         self.api = PushshiftAPI()
 
     def gather(self):
-        for submission in self.api.search_submissions(subreddit=self.subreddit, filters=self.filters):
+        for submission in self.api.search_submissions(after=self.time_from, before=self.time_to, subreddit=self.subreddit, filters=self.filters):
 
             idx = submission.id
             score = submission.score
@@ -39,19 +39,22 @@ class Fetched:
 
             print(f"found {idx} of {day}/{month}/{year}")
 
-            dpath = f"dumps/{year}/{month}/{day}"
+            dpath = f"dumps/{self.subreddit}/{year}/{month}/{day}"
             fpath = f"{idx}.json"
 
-            os.makedirs(dpath, exist_ok=True)
+            if not os.path.exists(os.path.join(dpath, fpath)):
+                os.makedirs(dpath, exist_ok=True)
 
-            payload = { "id": idx, "score": score, "author": author, "created": submission.created_utc, "title": title}
+                payload = { "id": idx, "score": score, "author": author, "created": submission.created_utc, "title": title}
 
-            with open(os.path.join(dpath, fpath), "w") as f:
-                json.dump(payload, f, indent=4, sort_keys=True)
+                with open(os.path.join(dpath, fpath), "w") as f:
+                    json.dump(payload, f, indent=4, sort_keys=True)
+            else:
+                print("meta already downloaded")
 
 
 if __name__ == "__main__":
-    a = Fetched("india")
+    a = Fetcher("india")
     a.gather()
 
 
